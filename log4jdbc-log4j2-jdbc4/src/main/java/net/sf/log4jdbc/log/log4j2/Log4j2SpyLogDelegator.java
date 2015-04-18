@@ -3,11 +3,13 @@ package net.sf.log4jdbc.log.log4j2;
 import net.sf.log4jdbc.Properties;
 import net.sf.log4jdbc.log.AbstractSpyLogDelegator;
 import net.sf.log4jdbc.log.log4j2.message.ConnectionMessage;
+import net.sf.log4jdbc.log.log4j2.message.TransactionMessage;
 import net.sf.log4jdbc.log.log4j2.message.ExceptionOccuredMessage;
 import net.sf.log4jdbc.log.log4j2.message.MethodReturnedMessage;
 import net.sf.log4jdbc.log.log4j2.message.SqlTimingOccurredMessage;
 import net.sf.log4jdbc.log.log4j2.message.ConnectionMessage.Operation;
 import net.sf.log4jdbc.sql.Spy;
+import net.sf.log4jdbc.sql.jdbcapi.ConnectionSpy;
 import net.sf.log4jdbc.sql.jdbcapi.ResultSetSpy;
 import net.sf.log4jdbc.sql.resultsetcollector.ResultSetCollector;
 import net.sf.log4jdbc.sql.resultsetcollector.ResultSetCollectorPrinter;
@@ -34,6 +36,7 @@ import org.apache.logging.log4j.MarkerManager;
  * within one single logger: 
  * <ul>
  * <li>The <code>Marker</code> <code>CONNECTION_MARKER</code>, named "LOG4JDBC_CONNECTION"
+ * <li>The <code>Marker</code> <code>TRANSACTION_MARKER</code>, named "LOG4JDBC_TRANSACTION"
  * <li>The <code>Marker</code> <code>RESULTSET_MARKER</code>, named "LOG4JDBC_RESULTSET", 
  * a child of the <code>Marker</code> <code>JDBC_MARKER</code>, named "LOG4JDBC_JDBC"
  * <li>The <code>Marker</code> <code>RESULTSETTABLE_MARKER</code>, named "LOG4JDBC_RESULTSETTABLE", 
@@ -79,6 +82,7 @@ import org.apache.logging.log4j.MarkerManager;
  *
  * @author Frederic Bastian
  * @author Mathieu Seppey
+ * @author Sotaro SUZUKI
  * @see #LOGGER
  * @see #DEBUGLOGGER
  * @see net.sf.log4jdbc.Slf4jSpyLogDelegator
@@ -130,7 +134,7 @@ public class Log4j2SpyLogDelegator extends AbstractSpyLogDelegator
     private static final Marker CREATE_MARKER = MarkerManager.getMarker("LOG4JDBC_CREATE", SQL_MARKER);
     /**
      * <code>Marker</code> parent of the <code>CONNECTION_MARKER</code> and 
-     * <code>JDBC_MARKER</code>, to easily disable logging of connection, JDBC, and ResultSet calls. 
+     * <code>JDBC_MARKER</code>, to easily disable logging of connection, transaction, JDBC, and ResultSet calls. 
      * This is to easily reproduce log4jdbc standard loggers behaviors. 
      */
     private static final Marker NON_STATEMENT_MARKER = MarkerManager.getMarker("LOG4JDBC_NON_STATEMENT");
@@ -139,6 +143,10 @@ public class Log4j2SpyLogDelegator extends AbstractSpyLogDelegator
      * (corresponds to the "jdbc.connection" logger in the standard implementation)
      */
     private static final Marker CONNECTION_MARKER = MarkerManager.getMarker("LOG4JDBC_CONNECTION", NON_STATEMENT_MARKER);
+    /**
+     * <code>Marker</code> to log transaction events
+     */
+    private static final Marker TRANSACTION_MARKER = MarkerManager.getMarker("LOG4JDBC_TRANSACTION", NON_STATEMENT_MARKER);
     /**
      * <code>Marker</code> to log all JDBC calls including <code>ResultSet</code>s, 
      * and result sets as tables.
@@ -190,6 +198,14 @@ public class Log4j2SpyLogDelegator extends AbstractSpyLogDelegator
     @Override
     public void methodReturned(Spy spy, String methodCall, String returnMsg) 
     {
+        if (spy instanceof ConnectionSpy) {
+            TransactionMessage transaction =
+                    TransactionMessage.apply((ConnectionSpy)spy, methodCall, returnMsg, LOGGER.isDebugEnabled(TRANSACTION_MARKER));
+            if (transaction != null) {
+                LOGGER.info(TRANSACTION_MARKER, transaction);
+            }
+        }
+
         String classType = spy.getClassType();
         Marker marker = ResultSetSpy.classTypeDescription.equals(classType)?
                 RESULTSET_MARKER:AUDIT_MARKER;

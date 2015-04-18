@@ -62,10 +62,12 @@ import net.sf.log4jdbc.sql.rdbmsspecifics.RdbmsSpecifics;
  * @author Arthur Blake
  * @author Frederic Bastian
  * @author Mathieu Seppey
+ * @author Sotaro SUZUKI
  */
 public class ConnectionSpy implements Connection, Spy
 {
   private Connection realConnection;
+  private boolean lastAutoCommit;
 
   /**
    * Get the real underlying Connection that this ConnectionSpy wraps.
@@ -75,6 +77,16 @@ public class ConnectionSpy implements Connection, Spy
   public Connection getRealConnection()
   {
     return realConnection;
+  }
+
+  /**
+   * Get the last AutoCommit state.
+   *
+   * @return the real underlying Connection.
+   */
+  public boolean getLastAutoCommit()
+  {
+    return lastAutoCommit;
   }
 
   private SpyLogDelegator log;
@@ -194,6 +206,7 @@ public class ConnectionSpy implements Connection, Spy
       throw new IllegalArgumentException("Must pass in a non null real Connection");
     }
     this.realConnection = realConnection;
+    lastAutoCommit = true;
     log = logDelegator;
 
     synchronized (connectionTracker)
